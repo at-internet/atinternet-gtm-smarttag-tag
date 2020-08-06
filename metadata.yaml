@@ -1,0 +1,5 @@
+homepage: "https://www.atinternet.com"
+documentation: "https://developers.atinternet-solutions.com/"
+versions:
+  - sha: 
+    changeNotes: Initial release.
