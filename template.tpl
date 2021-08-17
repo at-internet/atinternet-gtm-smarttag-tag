@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_temp_public_id",
-  "version": 2,
+  "version": 1,
   "securityGroups": [],
   "displayName": "AT Internet - SmartTag by 55",
   "categories": [
@@ -109,6 +109,10 @@ ___TEMPLATE_PARAMETERS___
       {
         "value": "event",
         "displayValue": "Event (Delta)"
+      },
+      {
+        "value": "privacy",
+        "displayValue": "Consent management (Privacy)"
       }
     ],
     "simpleValueType": true,
@@ -203,13 +207,6 @@ ___TEMPLATE_PARAMETERS___
           },
           {
             "type": "TEXT",
-            "name": "clickEvent",
-            "displayName": "Event",
-            "simpleValueType": true,
-            "help": "(optional) JavaScript event (prevent event propagation) – since v5.7.0. See \u003ca href\u003d\"https://developers.atinternet-solutions.com/javascript-en/content-javascript-en/clicks-javascript-en/\"\u003eAT Internet Click documentation\u003c/a\u003e for more details."
-          },
-          {
-            "type": "TEXT",
             "name": "clickCallback",
             "displayName": "Callback",
             "simpleValueType": true,
@@ -222,6 +219,79 @@ ___TEMPLATE_PARAMETERS___
       {
         "paramName": "trackType",
         "paramValue": "click",
+        "type": "EQUALS"
+      }
+    ]
+  },
+  {
+    "type": "GROUP",
+    "name": "Consent management",
+    "displayName": "Consent management",
+    "groupStyle": "NO_ZIPPY",
+    "subParams": [
+      {
+        "type": "SELECT",
+        "name": "privacyMode",
+        "displayName": "Privacy mode",
+        "macrosInSelect": true,
+        "selectItems": [
+          {
+            "value": "optin",
+            "displayValue": "Optin"
+          },
+          {
+            "value": "exempt",
+            "displayValue": "Exempt"
+          },
+          {
+            "value": "optout",
+            "displayValue": "Optout"
+          }
+        ],
+        "simpleValueType": true
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "privacySetIfNot",
+        "checkboxText": "Set privacy mode only if not already set",
+        "simpleValueType": true,
+        "help": "This option will ensure the new privacy mode is set only if there is no other mode stored. This can be used to set this mode as the default one and trigger it on every page."
+      },
+      {
+        "type": "SIMPLE_TABLE",
+        "name": "privacyExtendBuffer",
+        "displayName": "Extend allowed parameters",
+        "simpleTableColumns": [
+          {
+            "defaultValue": "",
+            "displayName": "Parameters",
+            "name": "privacyExtendBuffer",
+            "type": "TEXT",
+            "valueHint": ""
+          }
+        ],
+        "help": "You can check expected pattern here: https://developers.atinternet-solutions.com/javascript-en/advanced-features-javascript-en/privacy-javascript-en/#expand-buffer-hit-parameters_20"
+      },
+      {
+        "type": "SIMPLE_TABLE",
+        "name": "privacyExtendStorage",
+        "displayName": "Extend allowed storage",
+        "simpleTableColumns": [
+          {
+            "defaultValue": "",
+            "displayName": "Storage name",
+            "name": "privacyExtendStorage",
+            "type": "TEXT",
+            "valueHint": ""
+          }
+        ],
+        "help": "You can check expected pattern here: https://developers.atinternet-solutions.com/javascript-en/advanced-features-javascript-en/privacy-javascript-en/#extend-storage-cookies_19"
+      }
+    ],
+    "enablingConditions": [
+      {
+        "paramName": "trackType",
+        "paramValue": "privacy",
         "type": "EQUALS"
       }
     ]
@@ -1746,7 +1816,7 @@ const log = require('logToConsole');
 log('GTM AT Internet Tag Template - Data =', data);
 
 // Tracker Configurations Keys
-const trackConfKeys = ["site", "log", "logSSL", "domain", "collectDomain", "collectDomainSSL", "userIdOrigin", "secure", "pixelPath", "disableCookie", "disableStorage", "cookieSecure", "cookieDomain", "preview", "plgs", "lazyLoadingPath", "documentLevel", "redirect", "activateCallbacks", "medium", "ignoreEmptyChapterValue", "base64Storage", "sendHitWhenOptOut", "visitLifetime", "redirectionLifetime", "Campaigns", "Storage", "TechClicks", "ClientSideUserId", "ContextVariables", "InternalSearch", "Ecommerce", "Event", "IdentifiedVisitor"];
+const trackConfKeys = ["site", "log", "logSSL", "domain", "collectDomain", "collectDomainSSL", "userIdOrigin", "secure", "pixelPath", "disableCookie", "disableStorage", "cookieSecure", "cookieDomain", "preview", "plgs", "lazyLoadingPath", "documentLevel", "redirect", "activateCallbacks", "medium", "ignoreEmptyChapterValue", "base64Storage", "sendHitWhenOptOut", "visitLifetime", "redirectionLifetime", "Campaigns", "Storage", "TechClicks", "ClientSideUserId", "ContextVariables", "InternalSearch", "Ecommerce", "Event", "IdentifiedVisitor", "Privacy"];
 
 // Track Type
 const trackType = data.trackType;
@@ -1857,6 +1927,12 @@ const transactionId = data.transactionId;
 const transactionStatus = data.transactionStatus;
 const promoCode = data.promoCode;
 const firstPurchase = data.firstPurchase;
+
+// Privacy variables
+const privacyMode = data.privacyMode;
+const privacyExtendBuffer = data.privacyExtendBuffer;
+const privacyExtendStorage = data.provacyExtendStorage;
+const privacySetIfNot = data.privacySetIfNot;
 
 const pixel = {
   // Init Instance
@@ -2435,6 +2511,51 @@ const pixel = {
     }
 
     pixel.dispatch(); 
+  },
+  // Privacy consent management
+  privacy: () => {
+    const ATInternet = copyFromWindow('ATInternet');
+    const dataPrivacyMode = privacyMode;
+    const dataPrivacyExtendBuffer = privacyExtendBuffer;
+    const dataPrivacyExtendStorage = privacyExtendStorage;
+    const dataPrivacySetIfNot = privacySetIfNot;
+    const trackerInstance = ATInternet.Tracker.instances[ATInternet.Tracker.instances.length-1];
+
+    if(trackerInstance.privacy) {
+      if(dataPrivacyMode) {
+        const currentPrivacyMode = trackerInstance.privacy.getVisitorMode();
+        const currentPrivacyModeName = currentPrivacyMode && currentPrivacyMode.name || null;
+
+        if(currentPrivacyModeName != dataPrivacyMode && ((currentPrivacyMode == null && dataPrivacySetIfNot) || !dataPrivacySetIfNot)) {
+          switch(dataPrivacyMode) {
+            case 'exempt':
+              trackerInstance.privacy.setVisitorMode('cnil', 'exempt');
+              break;
+            case 'optin':
+              trackerInstance.privacy.setVisitorOptin();
+              break;
+            case 'optout':
+              trackerInstance.privacy.setVisitorOptout();
+              break;
+            default: 
+              break;
+          }
+        }
+      }
+
+      if(dataPrivacyExtendBuffer) {
+        let paramsToAllow = [];
+        dataPrivacyExtendBuffer.forEach(x => paramsToAllow.push(x.privacyExtendBuffer));
+        trackerInstance.privacy.extendIncludeBuffer(paramsToAllow);
+      }
+      if(dataPrivacyExtendStorage) {
+        let storageToAllow = [];
+        dataPrivacyExtendStorage.forEach(x => storageToAllow.push(x.privacyExtendStorage));
+        trackerInstance.privacy.extendIncludeStorage(storageToAllow);
+      }
+
+      log('GTM AT Internet Template - Consent - OK', dataPrivacyMode, dataPrivacyExtendBuffer, dataPrivacyExtendStorage); 
+    }
   },
   // Send pixel
   dispatch: () => {
