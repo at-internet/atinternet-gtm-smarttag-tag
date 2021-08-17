@@ -1,5 +1,12 @@
 homepage: "https://www.atinternet.com"
 documentation: "https://helpcentre.atinternet-solutions.com/hc/en-gb/articles/360016831799"
 versions:
+  # Latest version
+  - sha: f3a972b3b602729736b607a27c00efeb316bf87a
+    changeNotes: |2
+      Add privacy management
+      Add events tracking capability
+      Fix tracker configuration loading
+  # Older version
   - sha: 33ee7a4e755d4c7106167bab4783d1a080e13abe
     changeNotes: Initial release.
