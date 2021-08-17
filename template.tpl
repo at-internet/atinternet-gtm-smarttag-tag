@@ -1807,6 +1807,7 @@ const pixel = {
     const ATInternet = copyFromWindow('ATInternet');
     let ATTags = copyFromWindow('ATTags'); 
     const trackerSettingsContext = setDefinedObject(settingsTrackerContext, tagTrackerContext);
+    const trackerSettingsConfiguration = setDefinedObject(settingsTrackerConfiguration, tagTrackerConfiguration);
     
     if(!ATTags) {
       setInWindow('ATTags', [[smarttagURL],['']], true);
@@ -1817,7 +1818,7 @@ const pixel = {
       setInWindow('ATTags', ATTags, true);
     }
 
-    ATInternet.Tracker.Tag({}, trackerSettingsContext);
+    ATInternet.Tracker.Tag(trackerSettingsConfiguration, trackerSettingsContext);
 
     callLater(pixel.tracker);    
   },
